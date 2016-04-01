@@ -108,7 +108,6 @@ public class FileActivity extends AppCompatActivity
     private static final String DIALOG_WAIT_TAG = "DIALOG_WAIT";
 
     private static final String KEY_WAITING_FOR_OP_ID = "WAITING_FOR_OP_ID";
-    private static final String DIALOG_SHARE_PASSWORD = "DIALOG_SHARE_PASSWORD";
     private static final String KEY_ACTION_BAR_TITLE = "ACTION_BAR_TITLE";
 
     public static final int REQUEST_CODE__UPDATE_CREDENTIALS = 0;
@@ -778,9 +777,6 @@ public class FileActivity extends AppCompatActivity
                 t.show();
             }
 
-        } else if (operation instanceof CreateShareViaLinkOperation) {
-            onCreateShareViaLinkOperationFinish((CreateShareViaLinkOperation) operation, result);
-
         } else if (operation instanceof SynchronizeFileOperation) {
             onSynchronizeFileOperationFinish((SynchronizeFileOperation) operation, result);
 
@@ -859,46 +855,6 @@ public class FileActivity extends AppCompatActivity
             Toast.makeText(context, R.string.auth_account_does_not_exist, Toast.LENGTH_SHORT).show();
         }
 
-    }
-
-
-
-    private void onCreateShareViaLinkOperationFinish(CreateShareViaLinkOperation operation,
-                                                     RemoteOperationResult result) {
-        if (result.isSuccess()) {
-            updateFileFromDB();
-
-            Intent sendIntent = operation.getSendIntentWithSubject(this);
-            if (sendIntent != null) {
-                startActivity(sendIntent);
-            }
-
-        } else {
-            // Detect Failure (403) --> needs Password
-            if (result.getCode() == ResultCode.SHARE_FORBIDDEN) {
-                String password = operation.getPassword();
-                if ((password == null || password.length() == 0) &&
-                    getCapabilities().getFilesSharingPublicEnabled().isUnknown())
-                    {
-                    // Was tried without password, but not sure that it's optional. Try with password.
-                    // Try with password before giving up.
-                    // See also ShareFileFragment#OnShareViaLinkListener
-                    SharePasswordDialogFragment dialog =
-                            SharePasswordDialogFragment.newInstance(new OCFile(operation.getPath()), true);
-                    dialog.show(getSupportFragmentManager(), DIALOG_SHARE_PASSWORD);
-                } else {
-                    Toast t = Toast.makeText(this,
-                        ErrorMessageAdapter.getErrorCauseMessage(result, operation, getResources()),
-                        Toast.LENGTH_LONG);
-                    t.show();
-                }
-            } else {
-                Toast t = Toast.makeText(this,
-                        ErrorMessageAdapter.getErrorCauseMessage(result, operation, getResources()),
-                        Toast.LENGTH_LONG);
-                t.show();
-            }
-        }
     }
 
     private void onSynchronizeFileOperationFinish(SynchronizeFileOperation operation,
