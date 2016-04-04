@@ -976,6 +976,7 @@ public class FileActivity extends AppCompatActivity
     public void restart(){
         Intent i = new Intent(this, FileDisplayActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        i.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(i);
     }
 
