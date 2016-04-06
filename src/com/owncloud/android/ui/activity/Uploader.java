@@ -83,6 +83,8 @@ import com.owncloud.android.utils.DisplayUtils;
 import com.owncloud.android.utils.ErrorMessageAdapter;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -570,7 +572,7 @@ public class Uploader extends FileActivity
                         // Add extension if it does not exists in the file name
                         int index = displayName.lastIndexOf(".");
                         if(index == -1 || MimeTypeMap.getSingleton().
-                                getMimeTypeFromExtension(displayName.substring(index)) == null) {
+                                getMimeTypeFromExtension(displayName.substring(index + 1)) == null) {
                             String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
                             displayName += (extension != null) ? "." + extension : "";
                         }
@@ -584,13 +586,24 @@ public class Uploader extends FileActivity
                 if(displayName != null) {
                     filePath = mUploadPath + displayName;
 
-                    mRemoteCacheData.add(filePath);
-                    CopyTmpFileAsyncTask copyTask = new CopyTmpFileAsyncTask(this);
-                    Object[] params = {uri, filePath, mRemoteCacheData.size() - 1,
-                        getAccount().name, getContentResolver()};
-                    mNumCacheFile++;
-                    showWaitingCopyDialog();
-                    copyTask.execute(params);
+//                    mRemoteCacheData.add(filePath);
+//                    CopyTmpFileAsyncTask copyTask = new CopyTmpFileAsyncTask(this);
+//                    Object[] params = {uri, filePath, mRemoteCacheData.size() - 1,
+//                        getAccount().name, getContentResolver()};
+//                    mNumCacheFile++;
+//                    showWaitingCopyDialog();
+//                    copyTask.execute(params);
+
+                    FileUploader.UploadRequester requester = new FileUploader.UploadRequester();
+                    requester.uploadNewFile(
+                        this, getAccount(),
+                        String.valueOf(uri),
+                        filePath,
+                        FileUploader.LOCAL_BEHAVIOUR_FORGET,
+                        null,       // MIME type will be detected from file name
+                        false,      // do not create parent folder if not existent
+                        UploadFileOperation.CREATED_BY_USER
+                    );
 
                 } else {
                     throw new SecurityException();

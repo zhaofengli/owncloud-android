@@ -361,17 +361,9 @@ public class ExpandableUploadListAdapter extends BaseExpandableListAdapter imple
                     view.setOnClickListener(new OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                        File file = new File(upload.getLocalPath());
-                        if (file.exists()) {
-                            FileUploader.UploadRequester requester = new FileUploader.UploadRequester();
-                            requester.retry(mParentActivity, upload);
-                            refreshView();
-                        } else {
-                            final String message = String.format(
-                                mParentActivity.getString(R.string.local_file_not_found_toast)
-                            );
-                            Toast.makeText(mParentActivity, message, Toast.LENGTH_SHORT).show();
-                        }
+                        FileUploader.UploadRequester requester = new FileUploader.UploadRequester();
+                        requester.retry(mParentActivity, upload);
+                        refreshView();
                         }
                     });
                 }
@@ -387,7 +379,7 @@ public class ExpandableUploadListAdapter extends BaseExpandableListAdapter imple
              * {@link ThumbnailsCacheManager#cancelPotentialWork} will NEVER cancel any task.
              **/
             OCFile fakeFileToCheatThumbnailsCacheManagerInterface = new OCFile(upload.getRemotePath());
-            fakeFileToCheatThumbnailsCacheManagerInterface.setStoragePath(upload.getLocalPath());
+            fakeFileToCheatThumbnailsCacheManagerInterface.setStoragePath(upload.getLocalUri().getLastPathSegment());
             fakeFileToCheatThumbnailsCacheManagerInterface.setMimetype(upload.getMimeType());
 
             boolean allowedToCreateNewThumbnail = (ThumbnailsCacheManager.cancelPotentialWork(
@@ -433,7 +425,7 @@ public class ExpandableUploadListAdapter extends BaseExpandableListAdapter imple
 
 
             } else if (fakeFileToCheatThumbnailsCacheManagerInterface.isImage()) {
-                File file = new File(upload.getLocalPath());
+                File file = new File(upload.getLocalUri().getLastPathSegment());
                 // Thumbnail in Cache?
                 Bitmap thumbnail = ThumbnailsCacheManager.getBitmapFromDiskCache(
                         String.valueOf(file.hashCode()));
@@ -441,7 +433,7 @@ public class ExpandableUploadListAdapter extends BaseExpandableListAdapter imple
                     fileIcon.setImageBitmap(thumbnail);
                 } else {
                     // generate new Thumbnail
-                    if (allowedToCreateNewThumbnail) {
+                    if (file.exists() && allowedToCreateNewThumbnail) {
                         final ThumbnailsCacheManager.ThumbnailGenerationTask task =
                                 new ThumbnailsCacheManager.ThumbnailGenerationTask(fileIcon);
                         if (thumbnail == null) {

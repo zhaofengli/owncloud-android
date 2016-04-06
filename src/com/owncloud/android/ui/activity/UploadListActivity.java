@@ -140,12 +140,12 @@ public class UploadListActivity extends FileActivity implements UploadListFragme
     @Override
     public boolean onUploadItemClick(OCUpload file) {
         /// TODO is this path still active?
-        File f = new File(file.getLocalPath());
+        File f = new File(file.getLocalUri().getLastPathSegment());
         if(!f.exists()) {
             Toast.makeText(this, "Cannot open. Local file does not exist.",
                     Toast.LENGTH_SHORT).show();
         } else {
-            openFileWithDefault(file.getLocalPath());
+            openFileWithDefault(f.getAbsolutePath());
         }
         return true;
     }
