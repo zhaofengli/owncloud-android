@@ -32,6 +32,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Handler;
@@ -41,6 +42,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Parcelable;
 import android.os.Process;
+import android.provider.OpenableColumns;
 import android.support.v4.app.NotificationCompat;
 import android.util.Pair;
 
@@ -483,8 +485,12 @@ public class FileUploader extends Service
             try {
                 for (int i = 0; i < localUris.length; i++) {
 
+                    Cursor cursor = getContentResolver().query(Uri.parse(localUris[i]), null, null, null, null);
+                    cursor.moveToFirst();
+                    long fileSize = cursor.getLong(cursor.getColumnIndex(OpenableColumns.SIZE));
+
                     newUpload = new OCUpload(localUris[i], remotePaths[i], account.name);
-//                    newUpload.setFileSize(newUploadOperation.getFile().getFileLength());
+                    newUpload.setFileSize(fileSize);
                     newUpload.setForceOverwrite(forceOverwrite);
                     newUpload.setCreateRemoteFolder(isCreateRemoteFolder);
                     newUpload.setCreatedBy(createdBy);

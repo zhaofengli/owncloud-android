@@ -21,7 +21,6 @@
 package com.owncloud.android.operations;
 
 import android.accounts.Account;
-import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
