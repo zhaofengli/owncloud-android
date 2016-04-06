@@ -101,10 +101,10 @@ public class UploadsStorageManager extends Observable {
      * @return upload id, -1 if the insert process fails.
      */
     public long storeUpload(OCUpload ocUpload) {
-        Log_OC.v(TAG, "Inserting " + ocUpload.getLocalPath() + " with status=" + ocUpload.getUploadStatus());
+        Log_OC.v(TAG, "Inserting " + String.valueOf(ocUpload.getLocalUri()) + " with status=" + ocUpload.getUploadStatus());
 
         ContentValues cv = new ContentValues();
-        cv.put(ProviderTableMeta.UPLOADS_LOCAL_PATH, ocUpload.getLocalPath());
+        cv.put(ProviderTableMeta.UPLOADS_LOCAL_PATH, String.valueOf(ocUpload.getLocalUri()));
         cv.put(ProviderTableMeta.UPLOADS_REMOTE_PATH, ocUpload.getRemotePath());
         cv.put(ProviderTableMeta.UPLOADS_ACCOUNT_NAME, ocUpload.getAccountName());
         cv.put(ProviderTableMeta.UPLOADS_FILE_SIZE, ocUpload.getFileSize());
@@ -117,9 +117,9 @@ public class UploadsStorageManager extends Observable {
 
         Uri result = getDB().insert(ProviderTableMeta.CONTENT_URI_UPLOADS, cv);
 
-        Log_OC.d(TAG, "storeUpload returns with: " + result + " for file: " + ocUpload.getLocalPath());
+        Log_OC.d(TAG, "storeUpload returns with: " + result + " for file: " + String.valueOf(ocUpload.getLocalUri()));
         if (result == null) {
-            Log_OC.e(TAG, "Failed to insert item " + ocUpload.getLocalPath() + " into upload db.");
+            Log_OC.e(TAG, "Failed to insert item " + String.valueOf(ocUpload.getLocalUri()) + " into upload db.");
             return -1;
         } else {
             long new_id = Long.parseLong(result.getPathSegments().get(1));
@@ -136,10 +136,10 @@ public class UploadsStorageManager extends Observable {
      * @return num of updated uploads.
      */
     public int updateUpload(OCUpload ocUpload) {
-        Log_OC.v(TAG, "Updating " + ocUpload.getLocalPath() + " with status=" + ocUpload.getUploadStatus());
+        Log_OC.v(TAG, "Updating " + String.valueOf(ocUpload.getLocalUri()) + " with status=" + ocUpload.getUploadStatus());
 
         ContentValues cv = new ContentValues();
-        cv.put(ProviderTableMeta.UPLOADS_LOCAL_PATH, ocUpload.getLocalPath());
+        cv.put(ProviderTableMeta.UPLOADS_LOCAL_PATH, String.valueOf(ocUpload.getLocalUri()));
         cv.put(ProviderTableMeta.UPLOADS_REMOTE_PATH, ocUpload.getRemotePath());
         cv.put(ProviderTableMeta.UPLOADS_ACCOUNT_NAME, ocUpload.getAccountName());
         cv.put(ProviderTableMeta.UPLOADS_STATUS, ocUpload.getUploadStatus().value);
@@ -152,9 +152,9 @@ public class UploadsStorageManager extends Observable {
             new String[]{String.valueOf(ocUpload.getUploadId())}
         );
 
-        Log_OC.d(TAG, "updateUpload returns with: " + result + " for file: " + ocUpload.getLocalPath());
+        Log_OC.d(TAG, "updateUpload returns with: " + result + " for file: " + String.valueOf(ocUpload.getLocalUri()));
         if (result != 1) {
-            Log_OC.e(TAG, "Failed to update item " + ocUpload.getLocalPath() + " into upload db.");
+            Log_OC.e(TAG, "Failed to update item " + String.valueOf(ocUpload.getLocalUri()) + " into upload db.");
         } else {
             notifyObserversNow();
         }
@@ -169,7 +169,7 @@ public class UploadsStorageManager extends Observable {
      */
     public int updateUploadStatus(OCUpload ocUpload) {
         String localPath = (FileUploader.LOCAL_BEHAVIOUR_MOVE == ocUpload.getLocalAction())
-            ? ocUpload.getLocalPath() : null;
+            ? String.valueOf(ocUpload.getLocalUri()) : null;
         return updateUploadStatus(ocUpload.getUploadId(), ocUpload.getUploadStatus(),
                 ocUpload.getLastResult(), ocUpload.getRemotePath(), localPath);
     }
@@ -193,7 +193,7 @@ public class UploadsStorageManager extends Observable {
             upload.setLastResult(result);
             upload.setRemotePath(remotePath);
             if(localPath != null) {
-                upload.setLocalPath(localPath);
+                upload.setLocalUri(localPath);
             }
             if (status == UploadStatus.UPLOAD_SUCCEEDED) {
                 upload.setUploadEndTimestamp(Calendar.getInstance().getTimeInMillis());

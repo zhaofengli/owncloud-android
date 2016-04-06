@@ -23,7 +23,9 @@
 package com.owncloud.android.db;
 
 import android.accounts.Account;
+import android.content.ContentResolver;
 import android.content.Context;
+import android.net.Uri;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -37,6 +39,7 @@ import com.owncloud.android.operations.UploadFileOperation;
 import com.owncloud.android.utils.MimetypeIconUtil;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 
 /**
  * Stores all information in order to start upload operations. PersistentUploadObject can
@@ -50,9 +53,9 @@ public class OCUpload implements Parcelable {
     private long mId;
 
     /**
-     * Absolute path in the local file system to the file to be uploaded
+     * Uri with the absolute path in the local file system to the file to be uploaded
      */
-    private String mLocalPath;
+    private Uri mLocalUri;
 
     /**
      * Absolute path in the remote account to set to the uploaded file (not for its parent folder!)
@@ -67,7 +70,7 @@ public class OCUpload implements Parcelable {
     /**
      * File size
      */
-    private long mFileSize;
+    private long mFileSize = 0;
 
     /**
      * Local action for upload. (0 - COPY, 1 - MOVE, 2 - FORGET)
@@ -110,7 +113,13 @@ public class OCUpload implements Parcelable {
      * @param accountName       Name of an ownCloud account to update the file to.
      */
     public OCUpload(String localPath, String remotePath, String accountName) {
-        if (localPath == null || !localPath.startsWith(File.separator)) {
+
+        if (localPath == null) {
+            throw new IllegalArgumentException("Local path must not be null");
+        }
+        setLocalUri(localPath);
+
+        if (!mLocalUri.getLastPathSegment().startsWith(File.separator)) {
             throw new IllegalArgumentException("Local path must be an absolute path in the local file system");
         }
         if (remotePath == null || !remotePath.startsWith(OCFile.PATH_SEPARATOR)) {
@@ -120,7 +129,7 @@ public class OCUpload implements Parcelable {
             throw new IllegalArgumentException("Invalid account name");
         }
         resetData();
-        mLocalPath = localPath;
+
         mRemotePath = remotePath;
         mAccountName = accountName;
     }
@@ -142,7 +151,7 @@ public class OCUpload implements Parcelable {
      */
     private void resetData() {
         mRemotePath = "";
-        mLocalPath = "";
+        mLocalUri = null;
         mAccountName = "";
         mFileSize = -1;
         mId = -1;
@@ -196,12 +205,19 @@ public class OCUpload implements Parcelable {
     /**
      * @return the localPath
      */
-    public String getLocalPath() {
-        return mLocalPath;
+    public Uri getLocalUri() {
+        return mLocalUri;
     }
 
-    public void setLocalPath(String localPath) {
-        mLocalPath = localPath;
+    public void setLocalUri(Uri localUri) {
+        mLocalUri = localUri;
+    }
+
+    public void setLocalUri(String localPath) {
+        mLocalUri = Uri.parse(localPath);
+        if (mLocalUri.getScheme() == null) {
+            mLocalUri = Uri.parse(ContentResolver.SCHEME_FILE + "://" + localPath);
+        }
     }
 
     /**
@@ -235,7 +251,10 @@ public class OCUpload implements Parcelable {
      * @return the mimeType
      */
     public String getMimeType() {
-        return MimetypeIconUtil.getBestMimeTypeByFilename(mLocalPath);
+        if(mLocalUri != null) {
+            return MimetypeIconUtil.getBestMimeTypeByFilename(mLocalUri.getLastPathSegment());
+        }
+        return null;
     }
 
     /**
@@ -315,7 +334,7 @@ public class OCUpload implements Parcelable {
      */
     public String toFormattedString() {
         try {
-            String localPath = getLocalPath() != null ? getLocalPath() : "";
+            String localPath = getLocalUri() != null ? String.valueOf(getLocalUri()) : "";
             return localPath + " status:" + getUploadStatus() + " result:" +
                     (getLastResult() == null ? "null" : getLastResult().getValue());
         } catch (NullPointerException e){
@@ -374,7 +393,7 @@ public class OCUpload implements Parcelable {
 
     public void readFromParcel(Parcel source) {
         mId = source.readLong();
-        mLocalPath = source.readString();
+        mLocalUri = Uri.parse(source.readString());
         mRemotePath = source.readString();
         mAccountName = source.readString();
         mLocalAction = source.readInt();
@@ -403,7 +422,7 @@ public class OCUpload implements Parcelable {
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeLong(mId);
-        dest.writeString(mLocalPath);
+        dest.writeString(String.valueOf(mLocalUri));
         dest.writeString(mRemotePath);
         dest.writeString(mAccountName);
         dest.writeInt(mLocalAction);
@@ -416,35 +435,5 @@ public class OCUpload implements Parcelable {
     }
 
     enum CanUploadFileNowStatus {NOW, LATER, FILE_GONE, ERROR};
-
-    /**
-     * Returns true when the file may be uploaded now. This methods checks all
-     * restraints of the passed {@link OCUpload}, these include
-     * isUseWifiOnly(), check if local file exists, check if file was already
-     * uploaded...
-     *
-     * If return value is CanUploadFileNowStatus.NOW, uploadFile() may be
-     * called.
-     *
-     * @return CanUploadFileNowStatus.NOW is upload may proceed, <br>
-     *         CanUploadFileNowStatus.LATER if upload should be performed at a
-     *         later time, <br>
-     *         CanUploadFileNowStatus.ERROR if a severe error happened, calling
-     *         entity should remove upload from queue.
-     *
-     */
-    private CanUploadFileNowStatus canUploadFileNow(Context context) {
-
-        if (getUploadStatus() == UploadStatus.UPLOAD_SUCCEEDED) {
-            Log_OC.w(TAG, "Already succeeded uploadObject was again scheduled for upload. Fix that!");
-            return CanUploadFileNowStatus.ERROR;
-        }
-
-        if (!new File(getLocalPath()).exists()) {
-            Log_OC.d(TAG, "Do not start upload because local file does not exist.");
-            return CanUploadFileNowStatus.FILE_GONE;
-        }
-        return CanUploadFileNowStatus.NOW;
-    }
 
 }
