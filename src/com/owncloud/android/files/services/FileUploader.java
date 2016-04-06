@@ -32,6 +32,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -421,7 +422,7 @@ public class FileUploader extends Service
                 return Service.START_NOT_STICKY;
             }
 
-            String[] localPaths = null, remotePaths = null, mimeTypes = null;
+            String[] localUris = null, remotePaths = null, mimeTypes = null;
             OCFile[] files = null;
 
             if (intent.hasExtra(KEY_FILE)) {
@@ -430,7 +431,7 @@ public class FileUploader extends Service
                 System.arraycopy(files_temp, 0, files, 0, files_temp.length);
 
             } else {
-                localPaths = intent.getStringArrayExtra(KEY_LOCAL_FILE);
+                localUris = intent.getStringArrayExtra(KEY_LOCAL_FILE);
                 remotePaths = intent.getStringArrayExtra(KEY_REMOTE_FILE);
                 mimeTypes = intent.getStringArrayExtra(KEY_MIME_TYPE);
             }
@@ -447,7 +448,7 @@ public class FileUploader extends Service
                 return Service.START_NOT_STICKY;
 
             } else if (!intent.hasExtra(KEY_FILE)) {
-                if (localPaths == null) {
+                if (localUris == null) {
                     Log_OC.e(TAG, "Incorrect array for local paths provided in upload intent");
                     return Service.START_NOT_STICKY;
                 }
@@ -455,71 +456,72 @@ public class FileUploader extends Service
                     Log_OC.e(TAG, "Incorrect array for remote paths provided in upload intent");
                     return Service.START_NOT_STICKY;
                 }
-                if (localPaths.length != remotePaths.length) {
+                if (localUris.length != remotePaths.length) {
                     Log_OC.e(TAG, "Different number of remote paths and local paths!");
                     return Service.START_NOT_STICKY;
                 }
 
-                files = new OCFile[localPaths.length];
-                for (int i = 0; i < localPaths.length; i++) {
-                    files[i] = UploadFileOperation.obtainNewOCFileToUpload(
-                            remotePaths[i],
-                            localPaths[i],
-                            ((mimeTypes != null) ? mimeTypes[i] : null)
-                    );
-                    if (files[i] == null) {
-                        Log_OC.e(TAG, "obtainNewOCFileToUpload() returned null for remotePaths[i]:" + remotePaths[i]
-                                + " and localPaths[i]:" + localPaths[i]);
-                        return Service.START_NOT_STICKY;
-                    }
-                }
+//                files = new OCFile[localUris.length];
+//                for (int i = 0; i < localUris.length; i++) {
+//                    files[i] = UploadFileOperation.obtainNewOCFileToUpload(
+//                            remotePaths[i],
+//                            localUris[i],
+//                            ((mimeTypes != null) ? mimeTypes[i] : null)
+//                    );
+//                    if (files[i] == null) {
+//                        Log_OC.e(TAG, "obtainNewOCFileToUpload() returned null for remotePaths[i]:" + remotePaths[i]
+//                                + " and localUris[i]:" + localUris[i]);
+//                        return Service.START_NOT_STICKY;
+//                    }
+//                }
             }
-            // at this point variable "OCFile[] files" is loaded correctly.
 
             String uploadKey = null;
-            UploadFileOperation newUpload = null;
-            try {
-                for (int i = 0; i < files.length; i++) {
+            UploadFileOperation newUploadOperation = null;
+            OCUpload newUpload = null;
 
-                    newUpload = new UploadFileOperation(
+            try {
+                for (int i = 0; i < localUris.length; i++) {
+
+                    newUpload = new OCUpload(localUris[i], remotePaths[i], account.name);
+//                    newUpload.setFileSize(newUploadOperation.getFile().getFileLength());
+                    newUpload.setForceOverwrite(forceOverwrite);
+                    newUpload.setCreateRemoteFolder(isCreateRemoteFolder);
+                    newUpload.setCreatedBy(createdBy);
+                    newUpload.setLocalAction(localAction);
+                    /*ocUpload.setUseWifiOnly(isUseWifiOnly);
+                    ocUpload.setWhileChargingOnly(isWhileChargingOnly);*/
+                    newUpload.setUploadStatus(UploadStatus.UPLOAD_IN_PROGRESS);
+
+                    newUploadOperation = new UploadFileOperation(
                             account,
-                            files[i],
+                            newUpload,
                             chunked,
                             forceOverwrite,
                             localAction,
                             this
                     );
-                    newUpload.setCreatedBy(createdBy);
+                    newUploadOperation.setCreatedBy(createdBy);
                     if (isCreateRemoteFolder) {
-                        newUpload.setRemoteFolderToBeCreated();
+                        newUploadOperation.setRemoteFolderToBeCreated();
                     }
-                    newUpload.addDatatransferProgressListener(this);
-                    newUpload.addDatatransferProgressListener((FileUploaderBinder) mBinder);
+                    newUploadOperation.addDatatransferProgressListener(this);
+                    newUploadOperation.addDatatransferProgressListener((FileUploaderBinder) mBinder);
 
-                    newUpload.addRenameUploadListener(this);
+                    newUploadOperation.addRenameUploadListener(this);
 
                     // Save upload in database
-                    OCUpload ocUpload = new OCUpload(files[i], account);
-                    ocUpload.setFileSize(files[i].getFileLength());
-                    ocUpload.setForceOverwrite(forceOverwrite);
-                    ocUpload.setCreateRemoteFolder(isCreateRemoteFolder);
-                    ocUpload.setCreatedBy(createdBy);
-                    ocUpload.setLocalAction(localAction);
-                    /*ocUpload.setUseWifiOnly(isUseWifiOnly);
-                    ocUpload.setWhileChargingOnly(isWhileChargingOnly);*/
-                    ocUpload.setUploadStatus(UploadStatus.UPLOAD_IN_PROGRESS);
-
                     Pair<String, String> putResult = mPendingUploads.putIfAbsent(
                             account.name,
-                            files[i].getRemotePath(),
-                            newUpload
+                            newUploadOperation.getRemotePath(),
+                            newUploadOperation
                     );
                     if (putResult != null) {
                         uploadKey = putResult.first;
                         requestedUploads.add(uploadKey);
 
-                        long id = mUploadsStorageManager.storeUpload(ocUpload);
-                        newUpload.setOCUploadId(id);
+                        long id = mUploadsStorageManager.storeUpload(newUpload);
+                        newUploadOperation.setOCUploadId(id);
                     }
                 }
 
